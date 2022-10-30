@@ -13,6 +13,11 @@ type Publisher interface {
 	Close() error
 }
 
+type Emitter interface {
+	Emit(metrics ...any) error
+	Close() error
+}
+
 type MetricType string
 
 const (
@@ -118,7 +123,7 @@ type Reporter struct {
 	registry  metrics.Registry
 	interval  time.Duration // poll and report interval
 	autoReset bool          // auto reset metric such as counter
-	pubs      []Publisher
+	emitters  []Emitter
 	exit      chan struct{}     // signal when shutting down
 	labels    map[string]string // global labels attach to each metric
 	logf      func(format string, a ...any)
@@ -156,13 +161,16 @@ func (rep *Reporter) loopPoll() {
 }
 
 func (rep *Reporter) report() {
-	points := rep.pollMetrics()
-	if len(points) == 0 {
+	metrics := rep.pollMetrics()
+	if len(metrics) == 0 {
 		return
 	}
-	// report # of points to
-	for _, pub := range rep.pubs {
-		if err := pub.Publish(points...); err != nil {
+	points := make([]any, 0, len(metrics))
+	for _, m := range metrics {
+		points = append(points, m)
+	}
+	for _, em := range rep.emitters {
+		if err := em.Emit(points...); err != nil {
 			rep.logf("Report %d metric points error %#v\n", len(points), err.Error())
 		} else {
 			rep.logf("Reported %d metric points\n", len(points))
@@ -175,12 +183,13 @@ func (rep *Reporter) Start() {
 	go rep.loopPoll()
 }
 
+// Close reporter and emitters gracefully
 func (rep *Reporter) Close() error {
 	close(rep.exit)
 	rep.report()
 	var err error
-	for _, pub := range rep.pubs {
-		err = pub.Close()
+	for _, em := range rep.emitters {
+		err = em.Close()
 	}
 	return err
 }
@@ -196,7 +205,7 @@ func NewReporter(registry metrics.Registry, interval time.Duration, opts ...Opti
 	for _, opt := range opts {
 		opt(rep)
 	}
-	if len(rep.pubs) < 1 {
+	if len(rep.emitters) < 1 {
 		return nil, fmt.Errorf("Please specify at least one publisher to report metrics to.")
 	}
 	return rep, nil
@@ -204,10 +213,10 @@ func NewReporter(registry metrics.Registry, interval time.Duration, opts ...Opti
 
 type Option func(*Reporter)
 
-// Where to publish metric points
-func WithPublishers(pubs ...Publisher) Option {
+// Where to emit metrics
+func WithEmitters(emitters ...Emitter) Option {
 	return func(rep *Reporter) {
-		rep.pubs = append(rep.pubs, pubs...)
+		rep.emitters = append(rep.emitters, emitters...)
 	}
 }
 

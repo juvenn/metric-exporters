@@ -1,4 +1,4 @@
-package publishers
+package emitters
 
 import (
 	"bufio"
@@ -15,15 +15,12 @@ func TestReportToFile(t *testing.T) {
 	reg := metrics.NewRegistry()
 	pr, pw := io.Pipe()
 	defer pr.Close()
-	pub, err := NewPipePubliser(pw)
-	stdout, err := NewStdoutPublisher()
-	if err != nil {
-		t.Fatalf("%#v\n", err)
-	}
+	piper := NewIOEmitter(pw)
+	stdout := NewStdoutEmitter()
 	rep, err := exporters.NewReporter(reg, 800*time.Millisecond,
 		exporters.WithLabels("host", "localhost"),
 		exporters.WithAutoReset(true),
-		exporters.WithPublishers(pub, stdout))
+		exporters.WithEmitters(piper, stdout))
 	if err != nil {
 		t.Fatalf("%#v\n", err)
 	}

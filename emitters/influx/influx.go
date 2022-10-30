@@ -20,7 +20,8 @@ func NewV2Emitter(writeUrl string, bucket string, opts ...Option) (*influxEmitte
 		return nil, err
 	}
 	em.v2 = true
-	em.writeUrl.Query().Set("bucket", bucket)
+	em.params.Set("bucket", bucket)
+	em.writeUrl.RawQuery = em.params.Encode()
 	return em, nil
 }
 
@@ -29,7 +30,8 @@ func NewV1Emitter(writeUrl, database string, opts ...Option) (*influxEmitter, er
 	if err != nil {
 		return nil, err
 	}
-	em.writeUrl.Query().Set("db", database)
+	em.params.Set("db", database)
+	em.writeUrl.RawQuery = em.params.Encode()
 	return em, nil
 }
 
@@ -41,27 +43,30 @@ func newEmitter(writeUrl string, opts ...Option) (*influxEmitter, error) {
 	em := &influxEmitter{
 		writeUrl:  url,
 		precision: "s",
+		params:    url.Query(),
 		http: &http.Client{
 			Timeout: 5 * time.Second,
 		},
+	}
+	for _, opt := range opts {
+		opt(em)
 	}
 	if !validPrecisions[em.precision] {
 		return nil, fmt.Errorf("Influx precision must be one of [ns,u,us,ms,s]")
 	}
 	if em.precision != "" {
-		url.Query().Set("precision", em.precision)
+		em.params.Set("precision", em.precision)
 	}
-	for _, opt := range opts {
-		opt(em)
-	}
+	em.writeUrl.RawQuery = em.params.Encode()
 	return em, nil
 }
 
 // Http based influx emitter that supports both v1 and v2 ednpoints.
 // See https://docs.influxdata.com/influxdb/v1.8/tools/api/#influxdb-20-api-compatibility-endpoints
 type influxEmitter struct {
-	writeUrl  *url.URL // v1 v2 differences are encoded in url.
-	v2        bool
+	writeUrl  *url.URL   // Influx url
+	v2        bool       // v2 or not
+	params    url.Values // Influx url params
 	username  string
 	password  string
 	authtoken string // for v2 only
@@ -212,7 +217,7 @@ func WithAuthToken(token string) Option {
 // Org name, v2 only.
 func WithOrg(org string) Option {
 	return func(em *influxEmitter) {
-		em.writeUrl.Query().Set("org", org)
+		em.params.Set("org", org)
 	}
 }
 
@@ -221,6 +226,6 @@ func WithOrg(org string) Option {
 // Retention policy, v1 only
 func WithRetentionPolicy(rp string) Option {
 	return func(em *influxEmitter) {
-		em.writeUrl.Query().Set("rp", rp)
+		em.params.Set("rp", rp)
 	}
 }

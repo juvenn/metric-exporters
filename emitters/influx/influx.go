@@ -123,6 +123,10 @@ func encodeLine(metric *exporters.Datum, precision string) string {
 	return sb.String()
 }
 
+func (this *influxEmitter) Close() error {
+	return nil
+}
+
 func (this *influxEmitter) Emit(metrics ...any) error {
 	if len(metrics) == 0 {
 		return nil
@@ -140,7 +144,7 @@ func (this *influxEmitter) Emit(metrics ...any) error {
 }
 
 func (this *influxEmitter) request(body io.Reader) error {
-	req, err := http.NewRequest(http.MethodPost, this.writeUrl.RequestURI(), body)
+	req, err := http.NewRequest(http.MethodPost, this.writeUrl.String(), body)
 	if err != nil {
 		return err
 	}

@@ -34,27 +34,27 @@ func TestReportToFile(t *testing.T) {
 	}()
 
 	scanner := bufio.NewScanner(pr)
-	data := make([]exporters.Datum, 0, 8)
+	data := make([]exporters.Metric, 0, 8)
 	for scanner.Scan() {
 		bstr := scanner.Bytes()
-		datum := &exporters.Datum{}
-		err := json.Unmarshal(bstr, datum)
+		metric := &exporters.Metric{}
+		err := json.Unmarshal(bstr, metric)
 		if err != nil {
 			t.Fatalf("%#v\n", err)
 		}
-		data = append(data, *datum)
+		data = append(data, *metric)
 	}
 	if len(data) != 2 {
 		t.Fatalf("Should report 2 times with last graceful report but got %d", len(data))
 	}
-	for _, datum := range data {
-		if datum.Name != "req" {
-			t.Errorf("Name req != %s\n", datum.Name)
+	for _, metric := range data {
+		if metric.Name != "req" {
+			t.Errorf("Name req != %s\n", metric.Name)
 		}
-		if datum.Type != exporters.TypeCounter {
-			t.Errorf("Type %s != %s\n", exporters.TypeCounter, datum.Name)
+		if metric.Type != exporters.TypeCounter {
+			t.Errorf("Type %s != %s\n", exporters.TypeCounter, metric.Name)
 		}
-		if host := datum.Labels["host"]; host != "localhost" {
+		if host := metric.Labels["host"]; host != "localhost" {
 			t.Errorf("Labels.host localhost != %s\n", host)
 		}
 	}

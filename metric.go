@@ -1,0 +1,158 @@
+package exporters
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/rcrowley/go-metrics"
+)
+
+type MetricType string
+
+const (
+	TypeCounter   MetricType = "counter"
+	TypeGauge     MetricType = "gauge"
+	TypeMeter     MetricType = "meter"
+	TypeTimer     MetricType = "timer"
+	TypeHistogram MetricType = "histogram"
+)
+
+type Metric struct {
+	Name   string             `json:"name"`
+	Type   MetricType         `json:"type"`
+	Time   time.Time          `json:"time"`
+	Labels map[string]string  `json:"labels,omitempty"`
+	Fields map[string]float64 `json:"fields"`
+}
+
+func CollectMetric(name string, metric any, reset bool) *Metric {
+	now := time.Now()
+	switch metric := metric.(type) {
+	case metrics.Counter:
+		ms := metric.Snapshot()
+		fields := map[string]float64{
+			"count": float64(ms.Count()),
+		}
+		if reset {
+			metric.Clear()
+		}
+		return &Metric{Name: name, Type: TypeCounter, Time: now, Fields: fields}
+	case metrics.Histogram:
+		ms := metric.Snapshot()
+		ps := ms.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999, 0.9999})
+		fields := map[string]float64{
+			"count":    float64(ms.Count()),
+			"max":      float64(ms.Max()),
+			"mean":     ms.Mean(),
+			"min":      float64(ms.Min()),
+			"stddev":   ms.StdDev(),
+			"variance": ms.Variance(),
+			"p50":      ps[0],
+			"p75":      ps[1],
+			"p95":      ps[2],
+			"p99":      ps[3],
+			"p999":     ps[4],
+			"p9999":    ps[5],
+		}
+		if reset {
+			metric.Clear()
+		}
+		return &Metric{Name: name, Type: TypeHistogram, Time: now, Fields: fields}
+	case metrics.Meter:
+		ms := metric.Snapshot()
+		fields := map[string]float64{
+			"count": float64(ms.Count()),
+			"m1":    ms.Rate1(),
+			"m5":    ms.Rate5(),
+			"m15":   ms.Rate15(),
+			"mean":  ms.RateMean(),
+		}
+		return &Metric{Name: name, Type: TypeMeter, Time: now, Fields: fields}
+	case metrics.Timer:
+		ms := metric.Snapshot()
+		ps := ms.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999, 0.9999})
+		fields := map[string]float64{
+			"count":    float64(ms.Count()),
+			"max":      float64(ms.Max()),
+			"mean":     ms.Mean(),
+			"min":      float64(ms.Min()),
+			"stddev":   ms.StdDev(),
+			"variance": ms.Variance(),
+			"p50":      ps[0],
+			"p75":      ps[1],
+			"p95":      ps[2],
+			"p99":      ps[3],
+			"p999":     ps[4],
+			"p9999":    ps[5],
+			"m1":       ms.Rate1(),
+			"m5":       ms.Rate5(),
+			"m15":      ms.Rate15(),
+			"meanrate": ms.RateMean(),
+		}
+		return &Metric{Name: name, Type: TypeTimer, Time: now, Fields: fields}
+	case metrics.Gauge:
+		ms := metric.Snapshot()
+		fields := map[string]float64{
+			"gauge": float64(ms.Value()),
+		}
+		return &Metric{Name: name, Type: TypeGauge, Time: now, Fields: fields}
+	case metrics.GaugeFloat64:
+		ms := metric.Snapshot()
+		fields := map[string]float64{
+			"gauge": ms.Value(),
+		}
+		return &Metric{Name: name, Type: TypeGauge, Time: now, Fields: fields}
+	}
+	return nil
+}
+
+// Encode metric as influx line protocol
+func (metric *Metric) EncodeInfluxLine(precision string) string {
+	var sb strings.Builder
+	sb.WriteString(metric.Name)
+	// append labels
+	pairs := make([]pair, 0, len(metric.Labels))
+	for k, v := range metric.Labels {
+		pairs = append(pairs, pair{Key: k, Val: v})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Key < pairs[j].Key
+	})
+	for _, pair := range pairs {
+		sb.WriteString(",")
+		sb.WriteString(fmt.Sprintf("%s=%s", pair.Key, pair.Val))
+	}
+	sb.WriteString(" ")
+	// write fields
+	var i int
+	for k, v := range metric.Fields {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(fmt.Sprintf("%s=%g", k, v))
+		i++
+	}
+	// write timestamp
+	ts := metric.Time
+	sb.WriteString(" ")
+	var tss string
+	switch precision {
+	case "ns":
+		tss = fmt.Sprintf("%d", ts.UnixNano())
+	case "u", "us":
+		tss = fmt.Sprintf("%d", ts.UnixMicro())
+	case "ms":
+		tss = fmt.Sprintf("%d", ts.UnixMilli())
+	default:
+		tss = fmt.Sprintf("%d", ts.Unix())
+	}
+	sb.WriteString(tss)
+	return sb.String()
+}
+
+type pair struct {
+	Key string
+	Val string
+}

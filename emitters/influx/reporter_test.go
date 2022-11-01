@@ -7,16 +7,33 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"testing"
 	"time"
 
 	exporters "github.com/juvenn/metric-exporters"
 	"github.com/rcrowley/go-metrics"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
 	influxAddr = "127.0.0.1:8080"
 	influxUrl  = fmt.Sprintf("http://%s/write", influxAddr)
 )
+
+func TestNewEmitter(t *testing.T) {
+	assert := assert.New(t)
+	em, err := NewV1Emitter("http://127.0.0.1/write", "req", WithRetentionPolicy("daily"), WithPrecision("ms"))
+	if err != nil {
+		t.Fatalf("%+v\n", err)
+	}
+	assert.Equal("http://127.0.0.1/write?db=req&precision=ms&rp=daily", em.writeUrl.String())
+
+	em, err = NewV2Emitter("http://127.0.0.1/api/v2/write", "req", WithOrg("ACME"), WithPrecision("ms"))
+	if err != nil {
+		t.Fatalf("%+v\n", err)
+	}
+	assert.Equal("http://127.0.0.1/api/v2/write?bucket=req&org=ACME&precision=ms", em.writeUrl.String())
+}
 
 func Example() {
 	em, err := NewV1Emitter(influxUrl, "req")

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 
@@ -74,55 +73,6 @@ type influxEmitter struct {
 	http      *http.Client
 }
 
-type pair struct {
-	Key string
-	Val string
-}
-
-// Encode metric as influx line protocol
-func encodeLine(metric *exporters.Datum, precision string) string {
-	var sb strings.Builder
-	sb.WriteString(metric.Name)
-	// append labels
-	pairs := make([]pair, 0, len(metric.Labels))
-	for k, v := range metric.Labels {
-		pairs = append(pairs, pair{Key: k, Val: v})
-	}
-	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].Key < pairs[j].Key
-	})
-	for _, pair := range pairs {
-		sb.WriteString(",")
-		sb.WriteString(fmt.Sprintf("%s=%s", pair.Key, pair.Val))
-	}
-	sb.WriteString(" ")
-	// write fields
-	var i int
-	for k, v := range metric.Fields {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		sb.WriteString(fmt.Sprintf("%s=%g", k, v))
-		i++
-	}
-	// write timestamp
-	ts := metric.Time
-	sb.WriteString(" ")
-	var tss string
-	switch precision {
-	case "ns":
-		tss = fmt.Sprintf("%d", ts.UnixNano())
-	case "u", "us":
-		tss = fmt.Sprintf("%d", ts.UnixMicro())
-	case "ms":
-		tss = fmt.Sprintf("%d", ts.UnixMilli())
-	default:
-		tss = fmt.Sprintf("%d", ts.Unix())
-	}
-	sb.WriteString(tss)
-	return sb.String()
-}
-
 func (this *influxEmitter) Close() error {
 	return nil
 }
@@ -133,9 +83,9 @@ func (this *influxEmitter) Emit(metrics ...any) error {
 	}
 	var lines strings.Builder
 	for _, metric := range metrics {
-		datum, ok := metric.(exporters.Datum)
+		metric, ok := metric.(exporters.Metric)
 		if ok {
-			line := encodeLine(&datum, this.precision)
+			line := metric.EncodeInfluxLine(this.precision)
 			lines.WriteString(line)
 			lines.WriteString("\n")
 		}

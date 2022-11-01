@@ -43,7 +43,7 @@ type fileEmitter struct {
 	writer io.Writer
 }
 
-func (this *fileEmitter) Emit(metrics ...any) error {
+func (this *fileEmitter) Emit(metrics ...*exporters.Metric) error {
 	writer := this.writer
 	for _, metric := range metrics {
 		line, err := json.Marshal(metric)

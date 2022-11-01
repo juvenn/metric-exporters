@@ -1,6 +1,6 @@
 package exporters
 
 type Emitter interface {
-	Emit(metrics ...any) error
+	Emit(metrics ...*Metric) error
 	Close() error
 }

@@ -19,8 +19,8 @@ type Reporter struct {
 	logf      func(format string, a ...any)
 }
 
-func (rep *Reporter) pollMetrics() []Metric {
-	points := make([]Metric, 0, 128)
+func (rep *Reporter) pollMetrics() []*Metric {
+	points := make([]*Metric, 0, 128)
 	rep.registry.Each(func(name string, metrik any) {
 		metric := CollectMetric(name, metrik, rep.autoReset)
 		if metric != nil {
@@ -30,7 +30,7 @@ func (rep *Reporter) pollMetrics() []Metric {
 			for k, v := range rep.labels {
 				metric.Labels[k] = v
 			}
-			points = append(points, *metric)
+			points = append(points, metric)
 		}
 	})
 	return points
@@ -55,15 +55,11 @@ func (rep *Reporter) report() {
 	if len(metrics) == 0 {
 		return
 	}
-	points := make([]any, 0, len(metrics))
-	for _, m := range metrics {
-		points = append(points, m)
-	}
 	for _, em := range rep.emitters {
-		if err := em.Emit(points...); err != nil {
-			rep.logf("Report %d metric points error %#v\n", len(points), err.Error())
+		if err := em.Emit(metrics...); err != nil {
+			rep.logf("Report %d metric points error %#v\n", len(metrics), err.Error())
 		} else {
-			rep.logf("Reported %d metric points\n", len(points))
+			rep.logf("Reported %d metric points\n", len(metrics))
 		}
 	}
 }

@@ -77,18 +77,15 @@ func (this *influxEmitter) Close() error {
 	return nil
 }
 
-func (this *influxEmitter) Emit(metrics ...any) error {
+func (this *influxEmitter) Emit(metrics ...*exporters.Metric) error {
 	if len(metrics) == 0 {
 		return nil
 	}
 	var lines strings.Builder
 	for _, metric := range metrics {
-		metric, ok := metric.(exporters.Metric)
-		if ok {
-			line := metric.EncodeInfluxLine(this.precision)
-			lines.WriteString(line)
-			lines.WriteString("\n")
-		}
+		line := metric.EncodeInfluxLine(this.precision)
+		lines.WriteString(line)
+		lines.WriteString("\n")
 	}
 	return this.request(bytes.NewBufferString(lines.String()))
 }

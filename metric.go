@@ -108,6 +108,42 @@ func CollectMetric(name string, metric any, reset bool) *Metric {
 	return nil
 }
 
+// Encode metric to prometheus lines, each field will be appended to name
+// to produce a new line. Thus a metric with multiple fields will generate
+// multiple lines. Trailing line is omitted. See test for examples.
+//
+//    name_count{region="us-west-2",host="node1"} 1027 1395066363000
+//    name_mean{region="us-west-2",host="node1"} 50 1395066363000
+//    name_max{region="us-west-2",host="node1"} 110 1395066363000
+func (metric *Metric) EncodePromLines() string {
+	var buf strings.Builder
+	for k, v := range metric.Labels {
+		if buf.Len() > 0 {
+			buf.WriteString(",")
+		}
+		buf.WriteString(fmt.Sprintf("%s=%q", k, v))
+	}
+	labels := buf.String()
+	if len(labels) != 0 {
+		labels = fmt.Sprintf("{%s}", labels)
+	}
+
+	ts := metric.Time.UnixMilli()
+	if ts == 0 {
+		ts = time.Now().UnixMilli()
+	}
+	var lines strings.Builder
+	for f, v := range metric.Fields {
+		if lines.Len() > 0 {
+			lines.WriteString("\n")
+		}
+		// name_field{method="post",code="200"} 20 1395066363000
+		line := fmt.Sprintf("%s_%s%s %g %d", metric.Name, f, labels, v, ts)
+		lines.WriteString(line)
+	}
+	return lines.String()
+}
+
 // Encode metric as influx line protocol
 func (metric *Metric) EncodeInfluxLine(precision string) string {
 	var sb strings.Builder

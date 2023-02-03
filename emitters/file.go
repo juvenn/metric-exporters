@@ -43,6 +43,11 @@ type fileEmitter struct {
 	writer io.Writer
 }
 
+func (this *fileEmitter) Name() string {
+	// TODO filename?
+	return "file"
+}
+
 func (this *fileEmitter) Emit(metrics ...*exporters.Metric) error {
 	writer := this.writer
 	for _, metric := range metrics {

@@ -19,8 +19,11 @@ func NewV2Emitter(writeUrl string, bucket string, opts ...Option) (*influxEmitte
 		return nil, err
 	}
 	em.v2 = true
+	em.bucket = bucket
 	em.params.Set("bucket", bucket)
-	em.writeUrl.RawQuery = em.params.Encode()
+	if em.org != "" {
+		em.params.Set("org", em.org)
+	}
 	return em, nil
 }
 
@@ -29,8 +32,8 @@ func NewV1Emitter(writeUrl, database string, opts ...Option) (*influxEmitter, er
 	if err != nil {
 		return nil, err
 	}
+	em.database = database
 	em.params.Set("db", database)
-	em.writeUrl.RawQuery = em.params.Encode()
 	return em, nil
 }
 
@@ -56,7 +59,6 @@ func newEmitter(writeUrl string, opts ...Option) (*influxEmitter, error) {
 	if em.precision != "" {
 		em.params.Set("precision", em.precision)
 	}
-	em.writeUrl.RawQuery = em.params.Encode()
 	return em, nil
 }
 
@@ -64,13 +66,27 @@ func newEmitter(writeUrl string, opts ...Option) (*influxEmitter, error) {
 // See https://docs.influxdata.com/influxdb/v1.8/tools/api/#influxdb-20-api-compatibility-endpoints
 type influxEmitter struct {
 	writeUrl  *url.URL   // Influx url
-	v2        bool       // v2 or not
 	params    url.Values // Influx url params
 	username  string
 	password  string
-	authtoken string // for v2 only
 	precision string
-	http      *http.Client
+
+	database string // v1
+
+	v2        bool   // v2 or not
+	authtoken string // v2
+	org       string // v2
+	bucket    string // v2
+
+	http *http.Client
+}
+
+func (this *influxEmitter) Name() string {
+	if this.v2 {
+		return fmt.Sprintf("influxdb: %s bucket=%s", this.writeUrl.String(), this.bucket)
+	} else {
+		return fmt.Sprintf("influxdb: %s db=%s", this.writeUrl.String(), this.database)
+	}
 }
 
 func (this *influxEmitter) Close() error {
@@ -90,8 +106,14 @@ func (this *influxEmitter) Emit(metrics ...*exporters.Metric) error {
 	return this.request(bytes.NewBufferString(lines.String()))
 }
 
+func (this *influxEmitter) buildUrl() string {
+	url := *this.writeUrl
+	url.RawQuery = this.params.Encode()
+	return url.String()
+}
+
 func (this *influxEmitter) request(body io.Reader) error {
-	req, err := http.NewRequest(http.MethodPost, this.writeUrl.String(), body)
+	req, err := http.NewRequest(http.MethodPost, this.buildUrl(), body)
 	if err != nil {
 		return err
 	}
@@ -168,7 +190,7 @@ func WithAuthToken(token string) Option {
 // Org name, v2 only.
 func WithOrg(org string) Option {
 	return func(em *influxEmitter) {
-		em.params.Set("org", org)
+		em.org = org
 	}
 }
 

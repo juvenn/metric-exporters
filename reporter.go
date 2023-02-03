@@ -37,8 +37,7 @@ func (rep *Reporter) pollMetrics() []*Metric {
 }
 
 func (rep *Reporter) loopPoll() {
-	// started to report to ...
-	rep.logf("Started to report to by %s\n", rep.interval)
+	rep.logf("Start reporting metrics (every %s) to %s ...", rep.interval, rep.emitters[0].Name())
 	ticker := time.Tick(rep.interval)
 	for {
 		select {
@@ -57,9 +56,9 @@ func (rep *Reporter) report() {
 	}
 	for _, em := range rep.emitters {
 		if err := em.Emit(metrics...); err != nil {
-			rep.logf("Report %d metric points error %#v\n", len(metrics), err.Error())
+			rep.logf("ERROR: Report %d metric points to %s error: %s\n", len(metrics), em.Name(), err.Error())
 		} else {
-			rep.logf("Reported %d metric points\n", len(metrics))
+			rep.logf("Reported %d metric points to %s\n", len(metrics), em.Name())
 		}
 	}
 }
@@ -92,7 +91,7 @@ func NewReporter(registry metrics.Registry, interval time.Duration, opts ...Opti
 		opt(rep)
 	}
 	if len(rep.emitters) < 1 {
-		return nil, fmt.Errorf("Please specify at least one publisher to report metrics to.")
+		return nil, fmt.Errorf("Please specify at least one emitter to report metrics.")
 	}
 	return rep, nil
 }

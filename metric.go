@@ -117,7 +117,9 @@ func CollectMetric(name string, metric any, reset bool) *Metric {
 //    name_max{region="us-west-2",host="node1"} 110 1395066363000
 func (metric *Metric) EncodePromLines() string {
 	var buf strings.Builder
-	for k, v := range metric.Labels {
+	for _, entry := range sortByKey(metric.Labels) {
+		k := entry.Key
+		v := entry.Val
 		if buf.Len() > 0 {
 			buf.WriteString(",")
 		}
@@ -149,16 +151,10 @@ func (metric *Metric) EncodeInfluxLine(precision string) string {
 	var sb strings.Builder
 	sb.WriteString(metric.Name)
 	// append labels
-	pairs := make([]pair, 0, len(metric.Labels))
-	for k, v := range metric.Labels {
-		pairs = append(pairs, pair{Key: k, Val: v})
-	}
-	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].Key < pairs[j].Key
-	})
-	for _, pair := range pairs {
+	for _, entry := range sortByKey(metric.Labels) {
+		k, v := entry.Key, entry.Val
 		sb.WriteString(",")
-		sb.WriteString(fmt.Sprintf("%s=%s", pair.Key, pair.Val))
+		sb.WriteString(fmt.Sprintf("%s=%s", k, v))
 	}
 	sb.WriteString(" ")
 	// write fields
@@ -188,7 +184,19 @@ func (metric *Metric) EncodeInfluxLine(precision string) string {
 	return sb.String()
 }
 
-type pair struct {
+type entry struct {
 	Key string
 	Val string
+}
+
+// Sort map by key
+func sortByKey(m map[string]string) []entry {
+	pairs := make([]entry, 0, len(m))
+	for k, v := range m {
+		pairs = append(pairs, entry{k, v})
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Key < pairs[j].Key
+	})
+	return pairs
 }

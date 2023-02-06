@@ -40,7 +40,8 @@ func NewStdoutEmitter() *fileEmitter {
 
 // Emit metrics to file as json lines.
 type fileEmitter struct {
-	writer io.Writer
+	writer   io.Writer
+	reshapes []exporters.Reshape
 }
 
 func (this *fileEmitter) Name() string {
@@ -51,7 +52,7 @@ func (this *fileEmitter) Name() string {
 func (this *fileEmitter) Emit(metrics ...*exporters.Metric) error {
 	writer := this.writer
 	for _, metric := range metrics {
-		line, err := json.Marshal(metric)
+		line, err := json.Marshal(this.applyReshapes(metric))
 		if err != nil {
 			return err
 		}
@@ -70,4 +71,17 @@ func (this *fileEmitter) Close() error {
 	} else {
 		return nil
 	}
+}
+
+func (this *fileEmitter) applyReshapes(metric *exporters.Metric) *exporters.Metric {
+	out := *metric
+	for _, reshape := range this.reshapes {
+		out = reshape(out)
+	}
+	return &out
+}
+
+func (this *fileEmitter) WithReshape(fns ...exporters.Reshape) *fileEmitter {
+	this.reshapes = fns
+	return this
 }

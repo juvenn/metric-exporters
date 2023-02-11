@@ -19,19 +19,21 @@ func TestReportToFile(t *testing.T) {
 	stdout := NewStdoutEmitter()
 	rep, err := exporters.NewReporter(reg, 800*time.Millisecond,
 		exporters.WithLabels("host", "localhost"),
-		exporters.WithAutoReset(true),
+		exporters.WithAutoRemove(true),
 		exporters.WithEmitters(piper, stdout))
 	if err != nil {
 		t.Fatalf("%#v\n", err)
 	}
 	rep.Start()
-	counter := metrics.NewCounter()
-	reg.Register("req", counter)
+	counter := metrics.GetOrRegisterCounter("req", reg)
 	counter.Inc(1)
 	go func() {
 		time.Sleep(1 * time.Second)
 		rep.Close()
 	}()
+	time.Sleep(900 * time.Millisecond)
+	counter = metrics.GetOrRegisterCounter("req", reg)
+	counter.Inc(2)
 
 	scanner := bufio.NewScanner(pr)
 	data := make([]exporters.Metric, 0, 8)
@@ -44,7 +46,7 @@ func TestReportToFile(t *testing.T) {
 		}
 		data = append(data, *metric)
 	}
-	if len(data) != 2 {
+	if len(data) < 2 {
 		t.Fatalf("Should report 2 times with last graceful report but got %d", len(data))
 	}
 	for _, metric := range data {
@@ -58,7 +60,7 @@ func TestReportToFile(t *testing.T) {
 			t.Errorf("Labels.host localhost != %s\n", host)
 		}
 	}
-	if count := data[1].Fields["count"]; count != 0 {
-		t.Errorf("Counter should be reset to 0, but got %f\n", count)
+	if val := data[1].Fields["count"]; val != 2 {
+		t.Errorf("Counter should be reset and incremented, but got %f\n", val)
 	}
 }

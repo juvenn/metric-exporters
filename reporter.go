@@ -10,19 +10,23 @@ import (
 
 // A reporter periodically cut metrics and publish to given publishers.
 type Reporter struct {
-	registry  metrics.Registry
-	interval  time.Duration // poll and report interval
-	autoReset bool          // auto reset metric such as counter
-	emitters  []Emitter
-	exit      chan struct{}     // signal when shutting down
-	labels    map[string]string // global labels attach to each metric
-	logf      func(format string, a ...any)
+	registry   metrics.Registry
+	interval   time.Duration // poll and report interval
+	autoRemove bool          // auto remove metric such as counter
+	emitters   []Emitter
+	exit       chan struct{}     // signal when shutting down
+	labels     map[string]string // global labels attach to each metric
+	logf       func(format string, a ...any)
 }
 
 func (rep *Reporter) pollMetrics() []*Metric {
 	points := make([]*Metric, 0, 128)
 	rep.registry.Each(func(name string, metrik any) {
-		metric := CollectMetric(name, metrik, rep.autoReset)
+		metric := CollectMetric(name, metrik)
+		if rep.autoRemove {
+			// remove metric to keep zero metrics from hanging all time
+			rep.registry.Unregister(name)
+		}
 		if metric != nil {
 			if metric.Labels == nil && len(rep.labels) > 0 {
 				metric.Labels = make(map[string]string)
@@ -112,10 +116,10 @@ func WithPollInterval(interval time.Duration) Option {
 	}
 }
 
-// Auto reset metric after each report, such as Counter.
-func WithAutoReset(flag bool) Option {
+// Auto remove metric after each report, such as Counter.
+func WithAutoRemove(flag bool) Option {
 	return func(rep *Reporter) {
-		rep.autoReset = flag
+		rep.autoRemove = flag
 	}
 }
 

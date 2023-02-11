@@ -27,16 +27,13 @@ type Metric struct {
 	Fields map[string]float64 `json:"fields"`
 }
 
-func CollectMetric(name string, metric any, reset bool) *Metric {
+func CollectMetric(name string, metric any) *Metric {
 	now := time.Now()
 	switch metric := metric.(type) {
 	case metrics.Counter:
 		ms := metric.Snapshot()
 		fields := map[string]float64{
 			"count": float64(ms.Count()),
-		}
-		if reset {
-			metric.Clear()
 		}
 		return &Metric{Name: name, Type: TypeCounter, Time: now, Fields: fields}
 	case metrics.Histogram:
@@ -55,9 +52,6 @@ func CollectMetric(name string, metric any, reset bool) *Metric {
 			"p99":      ps[3],
 			"p999":     ps[4],
 			"p9999":    ps[5],
-		}
-		if reset {
-			metric.Clear()
 		}
 		return &Metric{Name: name, Type: TypeHistogram, Time: now, Fields: fields}
 	case metrics.Meter:

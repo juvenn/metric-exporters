@@ -22,7 +22,11 @@ type Reporter struct {
 func (rep *Reporter) pollMetrics() []*Metric {
 	points := make([]*Metric, 0, 128)
 	rep.registry.Each(func(name string, metrik any) {
-		metric := CollectMetric(name, metrik, rep.autoReset)
+		metric := CollectMetric(name, metrik)
+		if rep.autoReset {
+			// remove metric to keep zero metrics from hanging all time
+			rep.registry.Unregister(name)
+		}
 		if metric != nil {
 			if metric.Labels == nil && len(rep.labels) > 0 {
 				metric.Labels = make(map[string]string)

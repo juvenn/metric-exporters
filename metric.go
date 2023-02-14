@@ -27,6 +27,13 @@ type Metric struct {
 	Fields map[string]float64 `json:"fields"`
 }
 
+// A Reshape is a function that can reshape metric, updating name, labels, or
+// fields. The common use case is to decode metric name into labels. E.g.
+//
+//    req.appId.xxx.method.GET: 1 => req,appId=xxx,method=GET 1
+//
+type Reshape func(*Metric) *Metric
+
 func CollectMetric(name string, metric any) *Metric {
 	now := time.Now()
 	switch metric := metric.(type) {

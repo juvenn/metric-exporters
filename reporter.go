@@ -16,6 +16,7 @@ type Reporter struct {
 	emitters   []Emitter
 	exit       chan struct{}     // signal when shutting down
 	labels     map[string]string // global labels attach to each metric
+	reshape    Reshape           // metric transformer
 	logf       func(format string, a ...any)
 }
 
@@ -34,7 +35,13 @@ func (rep *Reporter) pollMetrics() []*Metric {
 			for k, v := range rep.labels {
 				metric.Labels[k] = v
 			}
-			points = append(points, metric)
+			if rep.reshape != nil {
+				metric = rep.reshape(metric)
+			}
+			// do not emit if metric has zero fields
+			if len(metric.Fields) > 0 {
+				points = append(points, metric)
+			}
 		}
 	})
 	return points
@@ -138,6 +145,13 @@ func WithLabels(kvs ...string) Option {
 	}
 	return func(rep *Reporter) {
 		rep.labels = labels
+	}
+}
+
+// Transform metric name, labels, fields before emitting.
+func WithReshape(fn Reshape) Option {
+	return func(rep *Reporter) {
+		rep.reshape = fn
 	}
 }
 

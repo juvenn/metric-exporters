@@ -1,6 +1,12 @@
 Go-metrics Exporters
 ===
 
+[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/juvenn/metric-exporters/build.yml?branch=master&style=flat-square)](https://github.com/juvenn/metric-exporters/actions)
+[![GitHub Release](https://img.shields.io/github/release/juvenn/metric-exporters/all.svg?style=flat-square)](https://github.com/juvenn/metric-exporters/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/juvenn/metric-exporters?style=flat-square)](https://goreportcard.com/report/github.com/juvenn/metric-exporters)
+![Go Version](https://img.shields.io/github/go-mod/go-version/juvenn/metric-exporters?style=flat-square)
+
+
 Export [go-metrics](https://github.com/rcrowley/go-metrics) to multiple upstreams with Emitter, and gracefully close it.
 
 Features

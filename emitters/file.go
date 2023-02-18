@@ -12,9 +12,8 @@ import (
 )
 
 // Periodically report to io writer
-func NewIOReporter(writer io.Writer, reg metrics.Registry, interval time.Duration, opts ...exporters.Option) (*exporters.Reporter, error) {
-	emiter := NewIOEmitter(writer)
-	return exporters.NewReporter(reg, interval, exporters.WithEmitters(emiter))
+func NewIOReporter(writer io.Writer, reg metrics.Registry, pollInterval time.Duration) *exporters.Reporter {
+	return exporters.NewReporter(reg, pollInterval).WithEmitter(NewIOEmitter(writer))
 }
 
 // Emit metrics to file

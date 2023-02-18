@@ -17,14 +17,17 @@ func TestReportToFile(t *testing.T) {
 	defer pr.Close()
 	piper := NewIOEmitter(pw)
 	stdout := NewStdoutEmitter()
-	rep, err := exporters.NewReporter(reg, 800*time.Millisecond,
-		exporters.WithLabels("host", "localhost"),
-		exporters.WithAutoRemove(true),
-		exporters.WithEmitters(piper, stdout))
+	rep, err := exporters.NewReporter(
+		reg,
+		800*time.Millisecond,
+	).WithLabel("host", "localhost").
+		WithAutoRemove(true).
+		WithEmitter(piper).
+		WithEmitter(stdout).
+		Start()
 	if err != nil {
 		t.Fatalf("%#v\n", err)
 	}
-	rep.Start()
 	counter := metrics.GetOrRegisterCounter("req", reg)
 	counter.Inc(1)
 	go func() {

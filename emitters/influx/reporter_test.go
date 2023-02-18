@@ -52,12 +52,11 @@ func Example() {
 	})
 	defer srv.Close()
 	reg := metrics.NewRegistry()
-	rep, err := exporters.NewReporter(reg, 1*time.Second, exporters.WithEmitters(em))
+	rep, err := exporters.NewReporter(reg, 1*time.Second).WithEmitter(em).Start()
 	if err != nil {
 		fmt.Printf("Error %+v\n", err)
 	}
 
-	rep.Start()
 	counter := metrics.NewCounter()
 	reg.Register("req", counter)
 	counter.Inc(1)

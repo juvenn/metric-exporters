@@ -19,10 +19,9 @@ Report to stdout:
 ```go
 reg := metrics.NewRegistry()
 stdout := emitters.NewStdoutEmitter()
-rep, err := exporters.NewReporter(reg, 1*time.Second, exporters.WithEmitters(stdout))
-rep.Start()
+rep, err := exporters.NewReporter(reg, 1*time.Second).WithEmitter(stdout).Start()
 
-// Close it gracefaully
+// Should close it when shutting down application
 rep.Close()
 ```
 
@@ -30,8 +29,12 @@ Report to stdout and influx v2:
 
 ```go
 inf, _ := influx.NewV2Emitter(influxUrl, "bucket")
-rep, err := exporters.NewReporter(reg, 1*time.Second, exporters.WithEmitters(stdout, inf))
-rep.Start()
+rep, err := exporters.NewReporter(reg, 1*time.Second).
+	WithEmitter(stdout).
+	WithEmitter(inf).
+	Start()
+// Should close it when shutting down application
+rep.Close()
 ```
 
 See test for more examples.

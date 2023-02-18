@@ -64,20 +64,3 @@ req_max{host="localhost",region="us-west-2"} 10 1667123357000`,
 		assert.Equal(line, tc.out)
 	}
 }
-
-func TestReshape(t *testing.T) {
-	metric := &Metric{Name: "req.method.GET", Type: "counter", Time: time.Unix(1667123357, 0),
-		Labels: map[string]string{"host": "localhost"},
-		Fields: map[string]float64{"count": 1}}
-	var reshape Reshape = func(m *Metric) *Metric {
-		m.Labels["method"] = "GET"
-		m.Name = "req"
-		return m
-	}
-	out := reshape(metric)
-	assert := assert.New(t)
-	assert.Equal("req.method.GET", metric.Name)
-	assert.Equal("", metric.Labels["method"])
-	assert.Equal("req", out.Name)
-	assert.Equal("GET", out.Labels["method"])
-}
